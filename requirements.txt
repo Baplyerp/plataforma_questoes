@@ -1,5 +1,4 @@
 streamlit
 sqlalchemy
-psycopg2-binary
-streamlit-quill
+pg8000
 pandas
