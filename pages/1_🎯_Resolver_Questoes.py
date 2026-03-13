@@ -16,9 +16,15 @@ st.markdown("""
 def buscar_dados():
     Session = sessionmaker(bind=engine)
     session = Session()
-    questoes = session.query(Questao).all()
-    session.close()
-    return questoes
+    try:
+        # Usamos o comando direto para evitar o erro de compatibilidade do Python 3.14
+        questoes = session.query(Questao).all()
+        return questoes
+    except Exception as e:
+        st.error(f"Erro ao buscar questões: {e}")
+        return []
+    finally:
+        session.close()
 
 def salvar_resposta(id_q, resp, status):
     Session = sessionmaker(bind=engine)
