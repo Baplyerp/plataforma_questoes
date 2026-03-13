@@ -3,7 +3,12 @@ import streamlit.components.v1 as components
 from sqlalchemy.orm import sessionmaker
 from database_schema import engine, Questao, HistoricoResolucao, ConteudoTeorico
 import sys
+import sys
 import os
+
+# Esse comando diz ao Python: "Olhe também na pasta de cima!"
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from database_schema import engine, Questao, HistoricoResolucao # Agora ele vai achar!
 
 st.set_page_config(page_title="Resolver Questões", page_icon="🎯", layout="wide")
