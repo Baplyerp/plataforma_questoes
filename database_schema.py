@@ -12,7 +12,14 @@ if not url_banco:
 if url_banco.startswith("postgres://"):
     url_banco = url_banco.replace("postgres://", "postgresql://", 1)
 
-engine = create_engine(url_banco)
+engine = create_engine(
+    url_banco,
+    pool_size=5,           # Mantém 5 conexões prontas
+    max_overflow=10,       # Abre mais se precisar
+    pool_timeout=30,       # Espera 30s antes de dar erro
+    pool_recycle=1800,     # Reinicia conexões a cada 30min
+    pool_pre_ping=True     # Testa se a conexão caiu antes de cada clique
+)
 Base = declarative_base()
 
 # --- Definição das Tabelas ---
