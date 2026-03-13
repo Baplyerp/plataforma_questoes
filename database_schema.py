@@ -1,58 +1,87 @@
 import os
 import datetime
-import ssl
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, DateTime, Float, Text, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, DateTime, Text, JSON
 from sqlalchemy.orm import declarative_base, relationship
 
 # ==========================================
-# 🔌 CONFIGURAÇÃO DE CONEXÃO (ARQUITETURA NUVEM)
+# 🔌 MOTOR DE CONEXÃO SUPABASE (SERVERLESS MODE)
 # ==========================================
 
-# Pegamos os segredos organizados do Streamlit
-db_secrets = os.environ.get("database") # Para local ou se estiver flat
-if not db_secrets:
-    # Se o Streamlit não converter o TOML em env vars automaticamente, pegamos manualmente
-    import streamlit as st
-    db_config = st.secrets["database"]
-else:
-    # Caso o Streamlit injete como env vars
-    import streamlit as st
-    db_config = st.secrets["database"]
+url_raw = os.environ.get("DATABASE_URL")
 
-# Montamos a URL garantindo o driver correto
-db_url = f"postgresql+pg8000://{db_config['username']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}"
+if not url_raw:
+    raise ValueError("🚨 DATABASE_URL não encontrada nos Secrets!")
 
-# Contexto SSL para o pg8000 (Obrigatório para Supabase)
-ssl_ctx = ssl.create_default_context()
-ssl_ctx.check_hostname = False
-ssl_ctx.verify_mode = ssl.CERT_NONE
+# Correção automática de protocolo para SQLAlchemy 2.0+
+if url_raw.startswith("postgres://"):
+    url_raw = url_raw.replace("postgres://", "postgresql://", 1)
 
+# Criamos o motor com as flags de estabilidade para PGBouncer
 engine = create_engine(
-    db_url,
+    url_raw,
+    pool_pre_ping=True,      # Testa a saúde da conexão antes de usar
+    pool_size=1,             # Em serverless, menos é mais (evita travar o pool)
+    max_overflow=0,
     connect_args={
-        "ssl_context": ssl_ctx,
-        "timeout": 60
-    },
-    pool_pre_ping=True,
-    pool_recycle=1800,
-    pool_size=10,
-    max_overflow=20
+        "sslmode": "require",
+        "connect_timeout": 10
+    }
 )
 
 Base = declarative_base()
 
 # ==========================================
-# 🏛️ MODELOS DAS TABELAS (MANTIDOS)
+# 🏛️ MODELOS (MANTIDOS)
 # ==========================================
-# ... (Mantenha todas as classes: Disciplina, Subtema, Assunto, Questao, etc., como já criamos)
+class Disciplina(Base):
+    __tablename__ = 'tb_disciplina'
+    id = Column(Integer, primary_key=True)
+    nome = Column(String, nullable=False)
+    subtemas = relationship("Subtema", back_populates="disciplina")
+
+class Subtema(Base):
+    __tablename__ = 'tb_subtema'
+    id = Column(Integer, primary_key=True)
+    id_disciplina = Column(Integer, ForeignKey('tb_disciplina.id'))
+    nome = Column(String, nullable=False)
+    disciplina = relationship("Disciplina", back_populates="subtemas")
+    assuntos = relationship("Assunto", back_populates="subtema")
+
+class Assunto(Base):
+    __tablename__ = 'tb_assunto'
+    id = Column(Integer, primary_key=True)
+    id_subtema = Column(Integer, ForeignKey('tb_subtema.id'))
+    nome = Column(String, nullable=False)
+    subtema = relationship("Subtema", back_populates="assuntos")
+    questoes = relationship("Questao", back_populates="assunto")
+
+class Questao(Base):
+    __tablename__ = 'tb_questao'
+    id = Column(Integer, primary_key=True)
+    banca = Column(String)
+    ano = Column(Integer)
+    id_assunto = Column(Integer, ForeignKey('tb_assunto.id'))
+    modalidade = Column(String) 
+    enunciado = Column(Text, nullable=False)
+    alternativas = Column(JSON, nullable=True) 
+    gabarito = Column(String, nullable=False)
+    comentario_teorico = Column(Text)
+    assunto = relationship("Assunto", back_populates="questoes")
+
+class HistoricoResolucao(Base):
+    __tablename__ = 'tb_historico'
+    id = Column(Integer, primary_key=True)
+    id_questao = Column(Integer, ForeignKey('tb_questao.id'))
+    resposta_marcada = Column(String, nullable=False)
+    acertou = Column(Boolean, nullable=False)
+    data_resolucao = Column(DateTime, default=datetime.datetime.utcnow)
 
 # ==========================================
-# 🛠️ SINCRONIZAÇÃO
+# 🛠️ SINCRONIZAÇÃO INICIAL
 # ==========================================
-
 if __name__ == "__main__":
     try:
         Base.metadata.create_all(engine)
-        print("✅ Tabelas sincronizadas com sucesso!")
+        print("✅ GestoBap: Tabelas sincronizadas com sucesso!")
     except Exception as e:
-        print(f"❌ Erro de Sincronização: {e}")
+        print(f"❌ Erro crítico de conexão: {e}")
