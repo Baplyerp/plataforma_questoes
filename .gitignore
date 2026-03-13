@@ -1,0 +1,9 @@
+# Ignorar o banco de dados local (Seus dados privados)
+*.db
+plataforma_concurso.db
+
+# Ignorar pastas de sistema do Python
+__pycache__/
+.venv/
+venv/
+.env
