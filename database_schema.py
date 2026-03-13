@@ -156,9 +156,9 @@ class HistoricoConcurso(Base):
     nota_corte = Column(Float)
     concorrencia_total = Column(Integer, nullable=True)
 
-    if __name__ == "__main__":
+if __name__ == "__main__":
     Base.metadata.create_all(engine)
     print("Novo Banco de Dados Multi-Relacional criado com sucesso!")
 
-
     
+
