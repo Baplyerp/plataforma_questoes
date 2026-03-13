@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignK
 from sqlalchemy.orm import declarative_base, relationship
 
 # ==========================================
-# 🔌 CONFIGURAÇÃO DE CONEXÃO (NUVEM)
+# 🔌 CONFIGURAÇÃO DE CONEXÃO (ESTABILIDADE TOTAL)
 # ==========================================
 
 url_banco = os.environ.get("DATABASE_URL")
@@ -13,22 +13,27 @@ url_banco = os.environ.get("DATABASE_URL")
 if not url_banco:
     raise ValueError("🚨 DATABASE_URL não encontrada nos Secrets do Streamlit!")
 
-# Forçamos o driver pg8000 (mais estável para Python 3.14 na nuvem)
+# 1. Forçamos o driver pg8000 (essencial para Python 3.14 na nuvem)
 if url_banco.startswith("postgresql://"):
     url_banco = url_banco.replace("postgresql://", "postgresql+pg8000://", 1)
 
-# Criamos um contexto SSL compatível para o pg8000 atravessar o firewall do Streamlit
+# 2. Criamos o contexto SSL blindado para o firewall do Streamlit
 ssl_ctx = ssl.create_default_context()
 ssl_ctx.check_hostname = False
 ssl_ctx.verify_mode = ssl.CERT_NONE
 
+# 3. Criamos o motor com a porta estável e tempo de resposta aumentado
+# IMPORTANTE: Garanta que no Secrets a porta seja 6543
 engine = create_engine(
     url_banco,
-    connect_args={"ssl_context": ssl_ctx},
+    connect_args={
+        "ssl_context": ssl_ctx,
+        "timeout": 30  # Dá 30 segundos para o handshake inicial
+    },
     pool_pre_ping=True,                # Testa a conexão antes de cada uso
-    pool_recycle=300,                  # Limpa conexões inativas a cada 5 min
-    pool_size=5,                       # Mantém um pool fixo de conexões
-    max_overflow=10                    # Permite expansão se houver muitos cliques
+    pool_recycle=1800,                 # Reinicia conexões a cada 30 min (evita idle timeout)
+    pool_size=5,
+    max_overflow=10
 )
 
 Base = declarative_base()
@@ -107,7 +112,8 @@ class Edital(Base):
 
 if __name__ == "__main__":
     try:
+        # metadata.create_all cria apenas as tabelas que não existem
         Base.metadata.create_all(engine)
-        print("✅ GestoBap: Tabelas sincronizadas com sucesso no Supabase!")
+        print("✅ GestoBap: Tabelas sincronizadas com sucesso!")
     except Exception as e:
-        print(f"❌ Erro ao sincronizar tabelas: {e}")
+        print(f"❌ Erro ao sincronizar: {e}")
