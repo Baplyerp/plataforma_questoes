@@ -2,6 +2,13 @@ import streamlit as st
 from sqlalchemy.orm import sessionmaker
 from database_schema import engine, Edital, MateriaCiclo, SessaoEstudo
 import datetime
+import sys
+import os
+
+# Esse comando diz ao Python: "Olhe também na pasta de cima!"
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from database_schema import engine, Questao, HistoricoResolucao # Agora ele vai achar!
 
 st.set_page_config(page_title="Zona de Estudo", page_icon="🧠", layout="wide")
 
