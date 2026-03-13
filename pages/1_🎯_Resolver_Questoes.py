@@ -3,7 +3,6 @@ import streamlit.components.v1 as components
 from sqlalchemy.orm import sessionmaker
 from database_schema import engine, Questao, HistoricoResolucao, ConteudoTeorico
 import sys
-import sys
 import os
 
 # Esse comando diz ao Python: "Olhe também na pasta de cima!"
