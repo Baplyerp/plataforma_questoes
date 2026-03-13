@@ -11,29 +11,29 @@ from sqlalchemy.orm import declarative_base, relationship
 url_banco = os.environ.get("DATABASE_URL")
 
 if not url_banco:
-    raise ValueError("🚨 DATABASE_URL não encontrada nos Secrets do Streamlit!")
+    raise ValueError("🚨 DATABASE_URL não encontrada nos Secrets!")
 
-# 1. Forçamos o driver pg8000 (essencial para Python 3.14 na nuvem)
+# 1. Forçamos o driver pg8000
 if url_banco.startswith("postgresql://"):
     url_banco = url_banco.replace("postgresql://", "postgresql+pg8000://", 1)
 
-# 2. Criamos o contexto SSL blindado para o firewall do Streamlit
+# 2. LIMPEZA CRÍTICA: Remove parâmetros de query (como ?sslmode=...) que causam erro no pg8000
+if "?" in url_banco:
+    url_banco = url_banco.split("?")[0]
+
+# 3. Contexto SSL
 ssl_ctx = ssl.create_default_context()
 ssl_ctx.check_hostname = False
 ssl_ctx.verify_mode = ssl.CERT_NONE
 
-# 3. Criamos o motor com a porta estável e tempo de resposta aumentado
-# IMPORTANTE: Garanta que no Secrets a porta seja 6543
 engine = create_engine(
     url_banco,
     connect_args={
         "ssl_context": ssl_ctx,
-        "timeout": 30  # Dá 30 segundos para o handshake inicial
+        "timeout": 60 # Aumentamos para 60s
     },
-    pool_pre_ping=True,                # Testa a conexão antes de cada uso
-    pool_recycle=1800,                 # Reinicia conexões a cada 30 min (evita idle timeout)
-    pool_size=5,
-    max_overflow=10
+    pool_pre_ping=True,
+    pool_recycle=1800
 )
 
 Base = declarative_base()
