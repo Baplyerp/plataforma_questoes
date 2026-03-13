@@ -1,8 +1,17 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, DateTime, ForeignKey, JSON
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+import os
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, DateTime, Float
+from sqlalchemy.orm import declarative_base, relationship
 import datetime
 
-engine = create_engine('sqlite:///plataforma_concurso.db', echo=False)
+# 1. Ele lê o arquivo .env escondido no seu PC
+load_dotenv()
+
+# 2. Ele puxa a URL segura lá de dentro
+url_banco = os.getenv("DATABASE_URL")
+
+# 3. Ele conecta o motor da Baply no Supabase
+engine = create_engine(url_banco)
 Base = declarative_base()
 
 # ==========================================
@@ -150,5 +159,6 @@ class HistoricoConcurso(Base):
     if __name__ == "__main__":
     Base.metadata.create_all(engine)
     print("Novo Banco de Dados Multi-Relacional criado com sucesso!")
+
 
     
