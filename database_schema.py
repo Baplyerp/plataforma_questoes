@@ -3,22 +3,17 @@ from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignK
 from sqlalchemy.orm import declarative_base, relationship
 import datetime
 
-# Tenta pegar do Secrets (Nuvem) ou do ambiente local
+# No database_schema.py
+
 url_banco = os.environ.get("DATABASE_URL")
 
-if not url_banco:
-    raise ValueError("🚨 DATABASE_URL não encontrada nos Secrets do Streamlit!")
-
-if url_banco.startswith("postgres://"):
-    url_banco = url_banco.replace("postgres://", "postgresql://", 1)
+# Se a URL começar com postgresql://, vamos mudar para o driver pg8000
+if url_banco and url_banco.startswith("postgresql://"):
+    url_banco = url_banco.replace("postgresql://", "postgresql+pg8000://", 1)
 
 engine = create_engine(
     url_banco,
-    pool_size=5,           # Mantém 5 conexões prontas
-    max_overflow=10,       # Abre mais se precisar
-    pool_timeout=30,       # Espera 30s antes de dar erro
-    pool_recycle=1800,     # Reinicia conexões a cada 30min
-    pool_pre_ping=True     # Testa se a conexão caiu antes de cada clique
+    pool_pre_ping=True
 )
 Base = declarative_base()
 
