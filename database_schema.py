@@ -4,24 +4,52 @@ import ssl
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, DateTime, Text, JSON
 from sqlalchemy.orm import declarative_base, relationship
 
-# --- CONEXÃO ---
-url_banco = os.environ.get("DATABASE_URL")
-if url_banco and url_banco.startswith("postgresql://"):
-    url_banco = url_banco.replace("postgresql://", "postgresql+pg8000://", 1)
+# ==========================================
+# 🔌 CONFIGURAÇÃO DE CONEXÃO (BLINDADA)
+# ==========================================
 
+url_banco = os.environ.get("DATABASE_URL")
+
+if not url_banco:
+    raise ValueError("🚨 DATABASE_URL não encontrada nos Secrets do Streamlit!")
+
+# 1. Ajuste de Protocolo para pg8000
+if url_banco.startswith("postgresql://") or url_banco.startswith("postgres://"):
+    url_banco = url_banco.replace("postgresql://", "postgresql+pg8000://", 1)
+    url_banco = url_banco.replace("postgres://", "postgresql+pg8000://", 1)
+
+# 2. LIMPEZA CRÍTICA: Remove o '?pgbouncer=true' ou qualquer lixo da URL
+# O pg8000 não aceita argumentos de query string na URL via SQLAlchemy
+if "?" in url_banco:
+    url_banco = url_banco.split("?")[0]
+
+# 3. Configuração de SSL (Obrigatória para Supabase)
 ssl_ctx = ssl.create_default_context()
 ssl_ctx.check_hostname = False
 ssl_ctx.verify_mode = ssl.CERT_NONE
 
-engine = create_engine(url_banco, connect_args={"ssl_context": ssl_ctx}, pool_pre_ping=True)
+# 4. Criação do Motor
+engine = create_engine(
+    url_banco,
+    connect_args={
+        "ssl_context": ssl_ctx,
+        "timeout": 30
+    },
+    pool_pre_ping=True,  # Testa a conexão antes de usar (evita quedas)
+    pool_recycle=1800    # Reinicia conexões a cada 30 min
+)
+
 Base = declarative_base()
 
-# --- TABELAS ---
+# ==========================================
+# 🏛️ MODELOS DAS TABELAS
+# ==========================================
+
 class Disciplina(Base):
     __tablename__ = 'tb_disciplina'
     id = Column(Integer, primary_key=True)
     nome = Column(String, nullable=False)
-    subtemas = relationship("Subtema", back_populates="disciplina")
+    subtemas = relationship("Subtema", back_populates="disciplina", cascade="all, delete-orphan")
 
 class Subtema(Base):
     __tablename__ = 'tb_subtema'
@@ -29,7 +57,7 @@ class Subtema(Base):
     id_disciplina = Column(Integer, ForeignKey('tb_disciplina.id'))
     nome = Column(String, nullable=False)
     disciplina = relationship("Disciplina", back_populates="subtemas")
-    assuntos = relationship("Assunto", back_populates="subtema")
+    assuntos = relationship("Assunto", back_populates="subtema", cascade="all, delete-orphan")
 
 class Assunto(Base):
     __tablename__ = 'tb_assunto'
@@ -57,7 +85,7 @@ class Questao(Base):
     ano = Column(Integer)
     id_assunto = Column(Integer, ForeignKey('tb_assunto.id'))
     id_conteudo = Column(Integer, ForeignKey('tb_conteudo_teorico.id'), nullable=True)
-    modalidade = Column(String) 
+    modalidade = Column(String) # 'CE' ou 'ME'
     enunciado = Column(Text, nullable=False)
     alternativas = Column(JSON, nullable=True) 
     gabarito = Column(String, nullable=False)
@@ -65,7 +93,6 @@ class Questao(Base):
     assunto = relationship("Assunto", back_populates="questoes")
     conteudo_teorico = relationship("ConteudoTeorico", back_populates="questoes_vinculadas")
 
-# AQUI ESTÁ O NOME QUE O PYTHON ESTAVA PROCURANDO:
 class HistoricoResolucao(Base):
     __tablename__ = 'tb_historico'
     id = Column(Integer, primary_key=True)
@@ -82,5 +109,10 @@ class Edital(Base):
     cargo = Column(String, nullable=False) 
     banca = Column(String, nullable=True)
 
+# --- Sincronização ---
 if __name__ == "__main__":
-    Base.metadata.create_all(engine)
+    try:
+        Base.metadata.create_all(engine)
+        print("✅ GestoBap: Tabelas sincronizadas com sucesso!")
+    except Exception as e:
+        print(f"❌ Erro ao sincronizar: {e}")
