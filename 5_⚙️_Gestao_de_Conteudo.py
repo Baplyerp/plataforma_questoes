@@ -13,7 +13,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- FUNÇÕES DE BANCO DE DADOS ---
 def buscar_pastas_formatadas():
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -121,7 +120,6 @@ def buscar_questoes_por_filtro(id_assunto, modalidade):
     session = Session()
     questoes = session.query(Questao).filter_by(id_assunto=id_assunto, modalidade=modalidade).all()
     opcoes = {f"ID {q.id} | {q.banca} {q.ano}": q for q in questoes}
-    # Expunging para usar fora da sessão sem erro de DetachedInstance
     session.expunge_all() 
     session.close()
     return opcoes
@@ -136,7 +134,7 @@ def atualizar_questao(id_questao, banca, ano, gabarito, enunciado, alternativas,
             q.ano = ano
             q.gabarito = gabarito
             q.enunciado = enunciado
-            q.alternativas = alternativas # <-- Agora o motor salva as alternativas!
+            q.alternativas = alternativas 
             q.comentario_teorico = comentario
             session.commit()
             return True
@@ -147,13 +145,11 @@ def atualizar_questao(id_questao, banca, ano, gabarito, enunciado, alternativas,
     finally:
         session.close()
 
-# --- INTERFACE PRINCIPAL ---
 st.markdown('<p class="titulo-secao">⚙️ Linha de Montagem de Conteúdo</p>', unsafe_allow_html=True)
 st.markdown('<p class="subtexto">Crie, edite e alimente suas pastas de organização. O sistema cuidará da telemetria de forma automática.</p>', unsafe_allow_html=True)
 
 opcoes_pastas = buscar_pastas_formatadas()
 
-# ETAPA 1 e 2 (Mantidas Ocultas para simplificar a visualização do código, elas continuam funcionando igual)
 with st.expander("📁 ETAPA 1: Gerenciar Pastas (Disciplina e Assunto)", expanded=False):
     tab1, tab2 = st.tabs(["➕ Criar Nova Pasta", "✏️ Editar Pasta Existente"])
     with tab1:
@@ -225,9 +221,6 @@ with st.expander("🎯 ETAPA 3: Cadastrar Nova Questão", expanded=False):
                 if salvar_questao(banca_q, ano_q, id_pasta_q, id_vinculo_q, sigla, enunciado_q, alternativas_dict, gabarito_q, comentario_q):
                     st.success("Questão adicionada!")
 
-# ==========================================
-# ETAPA 4: EDITAR QUESTÃO (A Nova Frente)
-# ==========================================
 with st.expander("🛠️ ETAPA 4: Editar Questão Existente", expanded=True):
     if not opcoes_pastas:
         st.info("Cadastre pastas e questões primeiro.")
@@ -263,11 +256,9 @@ with st.expander("🛠️ ETAPA 4: Editar Questão Existente", expanded=True):
             st.markdown("**Enunciado da Questão (Edite Aqui)**")
             novo_enunciado = st_quill(value=q_alvo.enunciado, key=f"ed_enunc_{q_alvo.id}")
             
-            # --- O NOVO BLOCO DAS ALTERNATIVAS (Só aparece se for ME) ---
             novas_alternativas = None
             if sigla_mod_ed == "ME":
                 st.markdown("**Alternativas (Edite Aqui)**")
-                # Se a questão for antiga e não tiver alternativas gravadas, cria campos em branco
                 alt_atuais = q_alvo.alternativas or {"A": "", "B": "", "C": "", "D": "", "E": ""}
                 
                 colAlt1, colAlt2 = st.columns(2)
@@ -280,13 +271,11 @@ with st.expander("🛠️ ETAPA 4: Editar Questão Existente", expanded=True):
                     alt_e = st.text_input("E)", value=alt_atuais.get("E", ""), key=f"ed_E_{q_alvo.id}")
                 
                 novas_alternativas = {"A": alt_a, "B": alt_b, "C": alt_c, "D": alt_d, "E": alt_e}
-            # -------------------------------------------------------------
 
             st.markdown("**Comentário Estratégico (Edite Aqui)**")
             novo_coment = st_quill(value=q_alvo.comentario_teorico, key=f"ed_coment_{q_alvo.id}")
             
             if st.button("💾 Salvar Alterações na Questão", type="primary"):
-                # Passamos a variável 'novas_alternativas' para o banco salvar
                 if atualizar_questao(q_alvo.id, nova_banca, novo_ano, novo_gab, novo_enunciado, novas_alternativas, novo_coment):
                     st.success("✅ Questão atualizada com sucesso! O carro está pronto para a pista.")
                     st.rerun()
