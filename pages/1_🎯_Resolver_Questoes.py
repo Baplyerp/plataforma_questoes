@@ -2,6 +2,9 @@ import streamlit as st
 import streamlit.components.v1 as components
 from sqlalchemy.orm import sessionmaker
 from database_schema import engine, Questao, HistoricoResolucao, ConteudoTeorico
+import sys
+import os
+from database_schema import engine, Questao, HistoricoResolucao # Agora ele vai achar!
 
 st.set_page_config(page_title="Resolver Questões", page_icon="🎯", layout="wide")
 
