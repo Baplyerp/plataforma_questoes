@@ -2,18 +2,25 @@ import os
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey, DateTime, Float, Text, JSON
 from sqlalchemy.orm import declarative_base, relationship
 import datetime
-
-# No database_schema.py
+import os
+from sqlalchemy import create_engine
+# ... (mantenha os outros imports de Column, Integer, etc)
 
 url_banco = os.environ.get("DATABASE_URL")
 
-# Se a URL começar com postgresql://, vamos mudar para o driver pg8000
-if url_banco and url_banco.startswith("postgresql://"):
+if not url_banco:
+    raise ValueError("🚨 DATABASE_URL não encontrada nos Secrets!")
+
+# O Pulo do Gato: Forçamos o driver pg8000 e o modo SSL
+if url_banco.startswith("postgresql://"):
     url_banco = url_banco.replace("postgresql://", "postgresql+pg8000://", 1)
 
+# Adicionamos parâmetros de estabilidade
 engine = create_engine(
     url_banco,
-    pool_pre_ping=True
+    connect_args={"ssl_context": True}, # Essencial para o Supabase
+    pool_pre_ping=True,               # Testa a conexão antes de usar
+    pool_recycle=300                  # Limpa conexões paradas a cada 5 min
 )
 Base = declarative_base()
 
